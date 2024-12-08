@@ -1,36 +1,33 @@
 const express = require("express");
-const { GiphyFetch } = require("@giphy/js-fetch-api");
 const axios = require("axios");
 require("dotenv").config();
 
 const app = express();
 const PORT = 3000;
 
-// Replace with your Giphy API key
-const giphyApiKey = process.env.GIPHY_API_KEY;
-const facebookAccessToken = process.env.FACEBOOK_ACCESS_TOKEN; // Facebook token for posting
+// ENV Variables
+const facebookAccessToken = process.env.FACEBOOK_ACCESS_TOKEN;
 
-const gf = new GiphyFetch(giphyApiKey);
-
-// Function to fetch a random meme from Giphy
-async function getRandomMeme() {
+async function fetchMeme() {
     try {
-        const { data } = await gf.random({ tag: "meme", type: "gifs" });
-        return data.images.original.url;
+        const response = await axios.get("https://meme-api.com/gimme");
+        const { url, title } = response.data;
+        return { imageUrl: url, caption: title };
     } catch (error) {
-        console.error("Error fetching meme from Giphy:", error.message);
-        throw new Error("Failed to fetch meme from Giphy.");
+        console.error("Error fetching meme from Meme Generator:", error.message);
+        throw new Error("Failed to fetch meme from Meme Generator API.");
     }
 }
 
 // Function to post meme on Facebook
-async function postToFacebook(memeUrl) {
+async function postToFacebook(metaUrl, caption) {
     try {
-        const pageId = process.env.FACEBOOK_PAGE_ID; // Replace with your page ID
+        const pageId = process.env.FACEBOOK_PAGE_ID;
         const url = `https://graph.facebook.com/${pageId}/photos`;
 
         const response = await axios.post(url, {
-            url: memeUrl,
+            url: metaUrl,
+            caption: caption,
             access_token: facebookAccessToken,
         });
 
@@ -44,8 +41,8 @@ async function postToFacebook(memeUrl) {
 // API endpoint to fetch and post meme
 app.get("/api/facebook/post", async (req, res) => {
     try {
-        const memeUrl = await getRandomMeme();
-        const facebookResponse = await postToFacebook(memeUrl);
+        const { imageUrl, caption } = await fetchMeme();
+        const facebookResponse = await postToFacebook(imageUrl, caption);
         res.status(200).json({
             success: true,
             message: "Meme posted successfully on Facebook!",
